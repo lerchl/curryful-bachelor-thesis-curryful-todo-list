@@ -1,0 +1,837 @@
+Here is the code for curryful-rest:
+```
+package io.github.curryful.rest.http;
+
+public enum HttpContentType {
+
+	APPLICATION_JSON("application/json"),
+	TEXT_PLAIN("text/plain"),
+	NONE("");
+
+	private final String value;
+
+	HttpContentType(String value) {
+		this.value = value;
+	}
+
+	public String getValue() {
+		return value;
+	}
+}
+```
+
+```
+package io.github.curryful.rest.http;
+
+import java.net.InetAddress;
+
+import io.github.curryful.commons.collections.ImmutableMaybeHashMap;
+import io.github.curryful.commons.monads.Maybe;
+
+/**
+ * Represents the context of an HTTP request.
+ */
+public final class HttpContext {
+
+	private final HttpMethod method;
+	private final String actualUri;
+	private final String formalUri;
+	private final ImmutableMaybeHashMap<String, String> pathParameters;
+	private final ImmutableMaybeHashMap<String, String> queryParameters;
+    private final ImmutableMaybeHashMap<String, String> headers;
+	private final InetAddress address;
+    private final Maybe<String> body;
+
+    private HttpContext(
+		HttpMethod method,
+		String actualUri,
+		String formalUri,
+		ImmutableMaybeHashMap<String, String> pathParameters,
+		ImmutableMaybeHashMap<String, String> queryParameters,
+		ImmutableMaybeHashMap<String, String> headers,
+		InetAddress address,
+		Maybe<String> body
+	) {
+		this.method = method;
+		this.actualUri = actualUri;
+		this.formalUri = formalUri;
+		this.pathParameters = pathParameters;
+		this.queryParameters = queryParameters;
+        this.headers = headers;
+		this.address = address;
+        this.body = body;
+    }
+
+	public static final HttpContext of(
+		HttpMethod method,
+		String actualUri,
+		String formalUri,
+		ImmutableMaybeHashMap<String, String> pathParameters,
+		ImmutableMaybeHashMap<String, String> queryParameters, 
+		ImmutableMaybeHashMap<String, String> headers,
+		InetAddress address,
+		Maybe<String> body
+	) {
+		return new HttpContext(method, actualUri, formalUri, pathParameters, queryParameters, headers, address, body);
+	}
+
+    public static final HttpContext empty() {
+        return new HttpContext(HttpMethod.NONE, "", "", ImmutableMaybeHashMap.empty(), ImmutableMaybeHashMap.empty(),
+				ImmutableMaybeHashMap.empty(), InetAddress.getLoopbackAddress(), Maybe.none());
+    }
+
+	public HttpMethod getMethod() {
+	    return method;
+	}
+
+	public String getActualUri() {
+	    return actualUri;
+	}
+
+	public String getFormalUri() {
+	    return formalUri;
+	}
+
+	public ImmutableMaybeHashMap<String, String> getPathParameters() {
+		return pathParameters;
+	}
+
+	public ImmutableMaybeHashMap<String, String> getQueryParameters() {
+		return queryParameters;
+	}
+
+    public ImmutableMaybeHashMap<String, String> getHeaders() {
+    	return headers;
+    } 
+
+	public InetAddress getAddress() {
+	    return address;
+	}
+
+    public Maybe<String> getBody() {
+        return body;
+    }
+}
+```
+
+```
+package io.github.curryful.rest.http;
+
+import java.util.Map;
+
+import io.github.curryful.commons.monads.Maybe;
+
+public enum HttpMethod {
+
+	GET,
+	POST,
+	PUT,
+	DELETE,
+	NONE;
+
+	private static final Map<String, HttpMethod> parseMap = Map.of(
+		"GET", GET,
+		"POST", POST,
+		"PUT", PUT,
+		"DELETE", DELETE
+	);
+
+	public static Maybe<HttpMethod> fromString(String method) {
+		return Maybe.ofNullable(parseMap.get(method));
+	}
+}
+```
+
+```
+package io.github.curryful.rest.http;
+
+import io.github.curryful.commons.monads.Maybe;
+
+/**
+ * An HTTP response.
+ */
+public final class HttpResponse {
+
+    private final HttpResponseCode code;
+    private final Maybe<String> body;
+	private final HttpContentType contentType;
+
+    private HttpResponse(HttpResponseCode code) {
+        this.code = code;
+        this.body = Maybe.none();
+		this.contentType = HttpContentType.NONE;
+    }
+
+    private HttpResponse(HttpResponseCode code, String body, HttpContentType contentType) {
+        this.code = code;
+        this.body = Maybe.just(body);
+		this.contentType = contentType;
+    }
+
+	public static HttpResponse of(HttpResponseCode code) {
+		return new HttpResponse(code);
+	}
+
+	public static HttpResponse of(HttpResponseCode code, String body, HttpContentType contentType) {
+		return new HttpResponse(code, body, contentType);
+	}
+
+    public HttpResponseCode getCode() {
+        return code;
+    }
+
+    public Maybe<String> getBody() {
+        return body;
+    }
+
+	public HttpContentType getContentType() {
+	    return contentType;
+	}
+}
+```
+
+```
+package io.github.curryful.rest.http;
+
+/**
+ * Represents an HTTP response code.
+ */
+public enum HttpResponseCode {
+
+    OK(200, "OK"),
+    CREATED(201, "Created"),
+    ACCEPTED(202, "Accepted"),
+    NO_CONTENT(204, "No Content"),
+    MOVED_PERMANENTLY(301, "Moved Permanently"),
+    FOUND(302, "Found"),
+    SEE_OTHER(303, "See Other"),
+    NOT_MODIFIED(304, "Not Modified"),
+    TEMPORARY_REDIRECT(307, "Temporary Redirect"),
+    BAD_REQUEST(400, "Bad Request"),
+    UNAUTHORIZED(401, "Unauthorized"),
+    FORBIDDEN(403, "Forbidden"),
+    NOT_FOUND(404, "Not Found"),
+    METHOD_NOT_ALLOWED(405, "Method Not Allowed"),
+    NOT_ACCEPTABLE(406, "Not Acceptable"),
+    REQUEST_TIMEOUT(408, "Request Timeout"),
+    CONFLICT(409, "Conflict"),
+    GONE(410, "Gone"),
+    LENGTH_REQUIRED(411, "Length Required"),
+    PAYLOAD_TOO_LARGE(413, "Payload Too Large"),
+    UNSUPPORTED_MEDIA_TYPE(415, "Unsupported Media Type"),
+    TOO_MANY_REQUESTS(429, "Too Many Requests"),
+    INTERNAL_SERVER_ERROR(500, "Internal Server Error"),
+    NOT_IMPLEMENTED(501, "Not Implemented"),
+    BAD_GATEWAY(502, "Bad Gateway"),
+    SERVICE_UNAVAILABLE(503, "Service Unavailable");
+
+    private final int code;
+    private final String text;
+
+    // /////////////////////////////////////////////////////////////////////////
+    // Init
+    // /////////////////////////////////////////////////////////////////////////
+
+    private HttpResponseCode(int code, String text) {
+        this.code = code;
+        this.text = text;
+    }
+
+    // /////////////////////////////////////////////////////////////////////////
+    // Getters
+    // /////////////////////////////////////////////////////////////////////////
+
+    public int getCode() {
+        return code;
+    }
+
+    public String getText() {
+        return text;
+    }
+}
+```
+
+```
+package io.github.curryful.rest.middleware;
+
+import java.util.function.UnaryOperator;
+
+import io.github.curryful.rest.http.HttpContext;
+import io.github.curryful.rest.http.HttpResponse;
+
+/**
+ * {@link FunctionalInterface} to register middleware to be executed after the
+ * request is processed.
+ */
+@FunctionalInterface
+public interface PostMiddleware {
+
+	public static final PostMiddleware none = context -> response -> response;
+
+	public UnaryOperator<HttpResponse> apply(HttpContext context);
+
+	default PostMiddleware andThen(PostMiddleware after) {
+        return (HttpContext context) -> (HttpResponse reponse) -> after.apply(context).apply(apply(context).apply(reponse));
+    }
+}
+```
+
+```
+package io.github.curryful.rest.middleware;
+
+import io.github.curryful.rest.http.HttpContext;
+
+/**
+ * {@link FunctionalInterface} to register middleware to be executed before the
+ * request is processed.
+ */
+@FunctionalInterface
+public interface PreMiddleware {
+
+	public static final PreMiddleware none = context -> context;
+
+	public HttpContext apply(HttpContext context);
+
+	default PreMiddleware andThen(PreMiddleware after) {
+        return (HttpContext context) -> after.apply(apply(context));
+    }
+}
+```
+
+```
+package io.github.curryful.rest;
+
+import static io.github.curryful.rest.Uri.replaceFormalParametersWithRegex;
+
+import java.util.regex.Pattern;
+
+import io.github.curryful.rest.http.HttpMethod;
+
+/**
+ * A destination is one of the parts describing an {@link Endpoint}.
+ */
+public final class Destination {
+
+    private final HttpMethod method;
+    private final String uri;
+
+    private Destination(HttpMethod method, String uri) {
+        this.method = method;
+        this.uri = uri;
+    }
+
+	public static Destination of(HttpMethod method, String uri) {
+		return new Destination(method, uri);
+	}
+
+    /**
+     * Check if a destination is the formal of another destination
+     * @param formal what might be the formal destination
+     * @param actual the actual destination
+     * @return true if it is the formal destination, false otherwise
+     * @apiNote
+     * <ul>
+     * <li>/hello/:name is the formal of /hello/John</li>
+     * <li>/hello/:name is the formal of /hello/John?lang=en</li>
+     * <li>/hello/:name is NOT the formal of /hello</li>
+     * </ul>
+     */
+	public static boolean isFormal(Destination formal, Destination actual) {
+        var actualUriParts = actual.uri.split("\\?");
+
+		return formal.getMethod().equals(actual.method) &&
+                Pattern.compile(replaceFormalParametersWithRegex.apply(formal.getUri()))
+                        .matcher(actualUriParts[0])
+                        .matches();
+	}
+
+    public HttpMethod getMethod() {
+        return method;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+}
+```
+
+```
+package io.github.curryful.rest;
+
+/**
+ * An endpoint is a combination of a {@link Destination} and a {@link RestFunction}.
+ */
+public final class Endpoint {
+
+    private final Destination destination;
+    private final RestFunction restFunction;
+
+    private Endpoint(Destination destination, RestFunction restFunction) {
+        this.destination = destination;
+        this.restFunction = restFunction;
+    }
+
+    public static Endpoint of(Destination destination, RestFunction restFunction) {
+        return new Endpoint(destination, restFunction);
+    }
+
+    public Destination getDestination() {
+        return destination;
+    }
+
+    public RestFunction getRestFunction() {
+        return restFunction;
+    }
+}
+```
+
+```
+package io.github.curryful.rest;
+
+import java.util.function.BiConsumer;
+
+import io.github.curryful.commons.collections.MutableMaybeHashMap;
+
+/**
+ * Represents a pair of values.
+ */
+public final class Pair<A, B> {
+
+    public static final BiConsumer<MutableMaybeHashMap<String, String>, Pair<String, String>> putPairIntoMMHashMap =
+			(map, pair) -> map.put(pair.getFirst(), pair.getSecond());
+
+    private final A first;
+    private final B second;
+
+    private Pair(A first, B second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    public static <A, B> Pair<A, B> of(A first, B second) {
+        return new Pair<>(first, second);
+    }
+
+    public A getFirst() {
+        return first;
+    }
+
+    public B getSecond() {
+        return second;
+    }
+}
+```
+
+```
+package io.github.curryful.rest;
+
+import java.util.function.Function;
+
+import io.github.curryful.rest.http.HttpContext;
+import io.github.curryful.rest.http.HttpResponse;
+
+/**
+ * Represents a function that takes an HTTP context and returns an HTTP response.
+ */
+public interface RestFunction extends Function<HttpContext, HttpResponse> {
+    // noop
+}
+
+```
+
+```
+package io.github.curryful.rest;
+
+import static io.github.curryful.rest.Uri.getPathParameters;
+import static io.github.curryful.rest.Uri.getQueryParameters;
+import static io.github.curryful.rest.http.Http.getBody;
+import static io.github.curryful.rest.http.Http.getHeaders;
+import static io.github.curryful.rest.http.Http.getMethod;
+import static io.github.curryful.rest.http.Http.getPath;
+
+import java.net.InetAddress;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+import io.github.curryful.commons.collections.ImmutableArrayList;
+import io.github.curryful.commons.monads.Maybe;
+import io.github.curryful.rest.http.HttpContext;
+import io.github.curryful.rest.http.HttpMethod;
+import io.github.curryful.rest.http.HttpResponse;
+import io.github.curryful.rest.http.HttpResponseCode;
+import io.github.curryful.rest.middleware.PostMiddleware;
+import io.github.curryful.rest.middleware.PreMiddleware;
+
+/**
+ * Class to hold functions for routing.
+ */
+public final class Router {
+
+	/**
+	 * {@link RestFunction} that returns a 404 response.
+	 */
+    private static final RestFunction notFound = _context -> HttpResponse.of(HttpResponseCode.NOT_FOUND);
+
+	/**
+	 * Processes an HTTP request.
+	 * Creates an {@link HttpContext} from the raw HTTP, applies pre-middleware,
+	 * finds the matching endpoint, applies the endpoint's rest function and applies post-middleware.
+	 * Returns an {@link HttpResponse}.
+	 */
+	public static final Function<
+		ImmutableArrayList<PreMiddleware>,
+		Function<
+			ImmutableArrayList<Endpoint>,
+			Function<
+				ImmutableArrayList<PostMiddleware>,
+				Function<
+					InetAddress,
+					Function<
+						ImmutableArrayList<String>,
+						HttpResponse
+					>
+				>
+			>
+		>	
+    > process = preMiddleware -> endpoints -> postMiddleware -> address -> rawHttp -> {
+        var method = getMethod.apply(rawHttp.stream());
+        var path = getPath.apply(rawHttp.stream());
+        var httpMethod = method.flatMap(HttpMethod::fromString);
+
+        if (!httpMethod.hasValue() || !path.hasValue()) {
+            return HttpResponse.of(HttpResponseCode.BAD_REQUEST);
+        }
+
+        var headers = getHeaders.apply(rawHttp.stream());
+        var body = getBody.apply(rawHttp.stream());
+
+        var actualUri = path.getValue();
+		var actualDestination = Destination.of(httpMethod.getValue(), actualUri);
+
+		Predicate<Endpoint> formalPredicate = e -> Destination.isFormal(e.getDestination(), actualDestination);
+        var endpoint = Maybe.from(endpoints.stream().filter(formalPredicate).findFirst());
+
+        if (!endpoint.hasValue()) {
+            return notFound.apply(HttpContext.empty());
+        }
+
+        var unpackedEndpoint = endpoint.getValue();
+		var formalUri = unpackedEndpoint.getDestination().getUri();
+		var httpContext = HttpContext.of(httpMethod.getValue(), actualUri, formalUri,
+				getPathParameters.apply(formalUri).apply(actualUri), getQueryParameters.apply(actualUri), headers, address, body);
+
+		var reducedPreMiddleware = preMiddleware.stream().reduce(PreMiddleware::andThen);
+		httpContext = Maybe.from(reducedPreMiddleware).orElse(PreMiddleware.none).apply(httpContext);
+        
+		var restFunctionResponse = unpackedEndpoint.getRestFunction().apply(httpContext);
+
+		var reducedPostMiddleware = postMiddleware.stream().reduce(PostMiddleware::andThen);
+		return Maybe.from(reducedPostMiddleware).orElse(PostMiddleware.none).apply(httpContext).apply(restFunctionResponse);
+	};
+}
+```
+
+```
+package io.github.curryful.rest;
+
+import static io.github.curryful.commons.combinators.YCombinator.Y;
+import static io.github.curryful.rest.Router.process;
+import static io.github.curryful.rest.http.Http.serializeResponse;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
+
+import io.github.curryful.commons.collections.ImmutableArrayList;
+import io.github.curryful.commons.collections.MutableArrayList;
+import io.github.curryful.commons.collections.MutableMaybeHashMap;
+import io.github.curryful.commons.monads.Maybe;
+import io.github.curryful.commons.monads.Try;
+import io.github.curryful.rest.http.HttpContext;
+import io.github.curryful.rest.middleware.PostMiddleware;
+import io.github.curryful.rest.middleware.PreMiddleware;
+
+/**
+ * Class to hold functions for serving the {@link Endpoint}s etc.
+ */
+public final class Server {
+
+	/**
+	 * Pre-middleware that logs the request.
+	 */
+	private static final PreMiddleware logRequest = context -> {
+		var headers = MutableMaybeHashMap.of(context.getHeaders());
+		headers.put("Curryful-Received-Request", Long.toString(Instant.now().toEpochMilli()));
+		var userAgent = context.getHeaders().get("User-Agent").orElse("Unknown");
+
+		String log = String.format("%s %s %s - %s %s", LocalDateTime.now(), context.getMethod().name(),
+				context.getFormalUri(), context.getAddress(), userAgent);
+		System.out.println(log);
+		return HttpContext.of(context.getMethod(), context.getActualUri(), context.getFormalUri(),
+				context.getPathParameters(), context.getQueryParameters(), headers, context.getAddress(),
+				context.getBody());
+	};
+
+	/**
+	 * Post-middleware that logs the response and the time it took to process the request.
+	 */
+	private static final PostMiddleware logResponse = context -> response -> {
+		var timeDelta = Instant.now().toEpochMilli() - context.getHeaders().get("Curryful-Received-Request")
+				.map(Long::parseLong).orElse(0L);
+		var userAgent = context.getHeaders().get("User-Agent").orElse("Unknown");
+
+		String log = String.format("%s %d %s %s (took %dms) - %s %s", LocalDateTime.now(),
+				response.getCode().getCode(), response.getCode().getText(),
+				context.getActualUri(), timeDelta, context.getAddress(), userAgent);
+		System.out.println(log);
+		return response;
+	};
+
+	/**
+	 * Copies a list and adds a line to it.
+	 */
+	private static final Function<String, UnaryOperator<ImmutableArrayList<String>>> copyAndAdd = line -> lines -> {
+		var newLines = MutableArrayList.of(lines);
+		newLines.add(line);
+		return newLines;
+	};
+
+	/**
+	 * Reads HTTP from a buffer and applies a function to it.
+	 */
+	private static final Function<
+		BufferedReader,
+		Function<
+			Function<ImmutableArrayList<String>, Try<ImmutableArrayList<String>>>,
+			Function<ImmutableArrayList<String>, Try<ImmutableArrayList<String>>>
+		>
+	> readHttpFromBuffer = bufferedReader -> function -> http -> {
+		try {
+			var line = Maybe.ofNullable(bufferedReader.readLine());
+
+			if (!line.hasValue()) {
+				return Try.success(http);
+			}
+
+			var curriedCopyAndAdd = copyAndAdd.apply(line.getValue());
+			Function<ImmutableArrayList<String>, Try<ImmutableArrayList<String>>> identityTry = list -> Try.success(list);
+			return Try.success(http).map(curriedCopyAndAdd).flatMap(bufferedReader.ready() ? function : identityTry);
+		} catch (IOException e) {
+			return Try.failure(e);
+		}
+	};
+
+	/**
+	 * Listens for HTTP requests on the given port.
+	 * Passes pre-middleware, endpoints and post-middleware to {@link Router#process}
+	 * to register and then listens for requests.
+	 * Will never finish unless an exception is thrown.
+	 */
+    public static final Function<
+		ImmutableArrayList<PreMiddleware>,
+		Function<
+			ImmutableArrayList<Endpoint>,
+			Function<
+				ImmutableArrayList<PostMiddleware>,
+				Function<
+					Integer,
+					Try<?>
+				>
+			>
+		>
+    > listen = preMiddleware -> endpoints -> postMiddleware -> port -> {
+		var preMiddlewareWithLogging = MutableArrayList.of(preMiddleware);
+		preMiddlewareWithLogging.addFirst(logRequest);
+
+		var postMiddlewareWithLogging = MutableArrayList.of(postMiddleware);
+		postMiddlewareWithLogging.add(logResponse);
+
+        var registeredProcess = process.apply(preMiddlewareWithLogging).apply(endpoints).apply(postMiddlewareWithLogging);
+
+        try (ServerSocket server = new ServerSocket(port)) {
+            while (true) {
+                var socket = server.accept();
+				var attachedProcess = registeredProcess.apply(socket.getInetAddress());
+				var readHttp = readHttpFromBuffer.apply(new BufferedReader(new InputStreamReader(socket.getInputStream())));
+				var httpTry = Y(readHttp).apply(ImmutableArrayList.empty());
+				var responseTry = httpTry.map(attachedProcess).map(serializeResponse);
+
+				if (responseTry.isFailure()) {
+					return responseTry;
+				}
+
+                var out = socket.getOutputStream();
+                out.write(responseTry.getValue().getBytes());
+                out.flush();
+                socket.close();
+            }
+        } catch (IOException e) {
+            return Try.failure(e);
+        }
+    };
+}
+```
+
+Here is the example code for the api built on top of curryful-rest:
+```
+package io.github.curryful.example;
+
+import static io.github.curryful.rest.http.HttpContentType.TEXT_PLAIN;
+import static io.github.curryful.rest.http.HttpResponseCode.OK;
+import static io.github.curryful.rest.http.HttpResponseCode.UNAUTHORIZED;
+
+import io.github.curryful.rest.RestFunction;
+import io.github.curryful.rest.http.HttpResponse;
+
+public class Hello {
+
+	public static final RestFunction sayHello = _context ->
+			HttpResponse.of(OK, "Hello, world!", TEXT_PLAIN);
+
+	public static final RestFunction sayHelloName = _context ->
+			HttpResponse.of(OK, "Hello, " + _context.getPathParameters().get("name").getValue() + "!" , TEXT_PLAIN);
+
+	public static final RestFunction secureHello = context -> {
+		var username = context.getHeaders().get("X-Authenticated-User");
+
+		if (!username.hasValue()) {
+			return HttpResponse.of(UNAUTHORIZED);
+		}
+
+		return HttpResponse.of(OK, "Hello, " + username.getValue() + "!", TEXT_PLAIN);
+	};
+}
+```
+
+```
+package io.github.curryful.example;
+
+import static io.github.curryful.rest.http.HttpContentType.TEXT_PLAIN;
+import static io.github.curryful.rest.http.HttpResponseCode.OK;
+
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+import io.github.curryful.commons.collections.ImmutableArrayList;
+import io.github.curryful.commons.collections.MutableArrayList;
+import io.github.curryful.rest.RestFunction;
+import io.github.curryful.rest.http.HttpResponse;
+
+public class Numbers {
+
+	private static final ImmutableArrayList<Integer> NUMBERS;
+
+	static {
+		MutableArrayList<Integer> numbers = MutableArrayList.empty();
+		numbers.add(3);
+		numbers.add(1);
+		numbers.add(4);
+		numbers.add(1);
+		numbers.add(5);
+		numbers.add(9);
+		numbers.add(2);
+		NUMBERS = numbers;
+	}
+
+	public static final RestFunction getNumbers = context -> {
+		var numbers = MutableArrayList.of(NUMBERS);
+		var order = context.getQueryParameters().get("order");
+
+		Comparator<Integer> comparator = order.hasValue() && order.getValue().equals("ascending") ?
+				Integer::compare : (a, b) -> Integer.compare(b, a);
+		numbers = numbers.stream().sorted(comparator)
+				.collect(MutableArrayList::empty, MutableArrayList::add, MutableArrayList::addAll);
+
+		var body = numbers.stream().map(i -> i.toString()).collect(Collectors.joining(", "));
+		return HttpResponse.of(OK, body, TEXT_PLAIN);
+	};
+}
+```
+
+```
+Main.java:
+package io.github.curryful.example;
+
+import static io.github.curryful.example.Hello.sayHello;
+import static io.github.curryful.example.Hello.sayHelloName;
+import static io.github.curryful.example.Hello.secureHello;
+import static io.github.curryful.example.Numbers.getNumbers;
+import static io.github.curryful.rest.Server.listen;
+
+import java.util.Base64;
+
+import io.github.curryful.commons.collections.ImmutableArrayList;
+import io.github.curryful.commons.collections.ImmutableMaybeHashMap;
+import io.github.curryful.commons.collections.MutableArrayList;
+import io.github.curryful.commons.collections.MutableMaybeHashMap;
+import io.github.curryful.rest.Destination;
+import io.github.curryful.rest.Endpoint;
+import io.github.curryful.rest.http.HttpContext;
+import io.github.curryful.rest.http.HttpMethod;
+import io.github.curryful.rest.middleware.PreMiddleware;
+
+public class Main {
+
+	private static final ImmutableMaybeHashMap<String, String> USERS;
+
+	static {
+		MutableMaybeHashMap<String, String> users = MutableMaybeHashMap.empty();
+		users.put("admin", "admin");
+		users.put("user", "password123");
+		USERS = users;
+	}
+
+	public static final PreMiddleware basicAuth = context -> {
+		var authHeader = context.getHeaders().get("Authorization");
+
+		if (!authHeader.hasValue()) {
+			return context;
+		}
+
+		var authParts = authHeader.getValue().split(" ");
+
+		if (authParts.length != 2 || !authParts[0].equals("Basic")) {
+			return context;
+		}
+
+		var credentials = new String(Base64.getDecoder().decode(authParts[1]));
+		var credentialParts = credentials.split(":");
+
+		if (credentialParts.length != 2) {
+			return context;
+		}
+
+		var username = credentialParts[0];
+		var password = credentialParts[1];
+
+		var dbPassword = USERS.get(username);
+		if (!dbPassword.hasValue() || !dbPassword.getValue().equals(password)) {
+			return context;
+		}
+
+		var headers = MutableMaybeHashMap.of(context.getHeaders());
+		headers.put("X-Authenticated-User", username);
+		return HttpContext.of(context.getMethod(), context.getActualUri(), context.getFormalUri(),
+				context.getPathParameters(), context.getQueryParameters(), headers,
+				context.getAddress(), context.getBody());
+	};
+
+	public static void main(String[] args) {
+		MutableArrayList<PreMiddleware> preMiddleware = MutableArrayList.empty();
+		preMiddleware.add(basicAuth);
+
+		MutableArrayList<Endpoint> endpoints = MutableArrayList.empty();
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/hello"), sayHello));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/hello/:name"), sayHelloName));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/secure/hello"), secureHello));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/numbers"), getNumbers));
+
+		listen.apply(preMiddleware).apply(endpoints).apply(ImmutableArrayList.empty()).apply(8080);
+	}
+}
+```
