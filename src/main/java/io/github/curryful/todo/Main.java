@@ -16,22 +16,23 @@ import io.github.curryful.rest.http.HttpMethod;
 
 public class Main {
 
-    public static void main(String[] args) {
-        MutableArrayList<Endpoint> endpoints = MutableArrayList.empty();
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/todos"), getTodos));
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.POST, "/todos"), postTodo));
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/todos/:id"), getTodoById));
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.PUT, "/todos/:id"), putTodoById));
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.DELETE, "/todos/:id"), deleteTodoById));
-        endpoints.add(Endpoint.of(Destination.of(HttpMethod.POST, "/todos/:id/toggle"), postToggleTodoById));
+	public static void main(String[] args) {
+		MutableArrayList<Endpoint> endpoints = MutableArrayList.empty();
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/todos"), getTodos));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.POST, "/todos"), postTodo));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.GET, "/todos/:id"), getTodoById));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.PUT, "/todos/:id"), putTodoById));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.DELETE, "/todos/:id"), deleteTodoById));
+		endpoints.add(Endpoint.of(Destination.of(HttpMethod.POST, "/todos/:id/toggle"), postToggleTodoById));
 
-        var listenTry = listen.apply(ImmutableArrayList.empty())
-                .apply(endpoints)
-                .apply(ImmutableArrayList.empty())
-                .apply(8080);
-        if (listenTry.isFailure()) {
-            System.err.println("Server failed to start: " + listenTry.getError().getMessage());
-            listenTry.getError().printStackTrace();
-        }
-    }
+		var listenTry = listen.apply(System.out::println)
+				.apply(ImmutableArrayList.empty())
+				.apply(endpoints)
+				.apply(ImmutableArrayList.empty())
+				.apply(8080);
+		if (listenTry.isFailure()) {
+			System.err.println("Server failed to start: " + listenTry.getError().getMessage());
+			listenTry.getError().printStackTrace();
+		}
+	}
 }
