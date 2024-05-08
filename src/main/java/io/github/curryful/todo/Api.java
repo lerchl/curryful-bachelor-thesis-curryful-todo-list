@@ -24,13 +24,13 @@ public class Api {
 
     public static final RestFunction getTodos = context -> HttpResponse.of(OK, serialize(todos), APPLICATION_JSON);
 
-    public static final RestFunction getTodoById = context -> findTodoById(
-            context.getPathParameters().get("id").map(Integer::parseInt))
+    public static final RestFunction getTodoById = context -> 
+            findTodoById(context.getPathParameters().get("id").map(Integer::parseInt))
             .map(todo -> HttpResponse.of(OK, serialize(todo), APPLICATION_JSON))
             .orElse(HttpResponse.of(NOT_FOUND));
 
-    public static final RestFunction putTodoById = context -> findTodoById(
-            context.getPathParameters().get("id").map(Integer::parseInt))
+    public static final RestFunction putTodoById = context ->
+            findTodoById(context.getPathParameters().get("id").map(Integer::parseInt))
             .flatMap(todo -> context.getBody().flatMap(body -> updateTodoFromBody(todo, body)))
             .map(todo -> HttpResponse.of(OK, serialize(todo), APPLICATION_JSON))
             .orElse(HttpResponse.of(NOT_FOUND));
@@ -43,16 +43,16 @@ public class Api {
                 return HttpResponse.of(CREATED, serialize(todo), APPLICATION_JSON);
             }).orElse(HttpResponse.of(BAD_REQUEST));
 
-    public static final RestFunction deleteTodoById = context -> findTodoById(
-            context.getPathParameters().get("id").map(Integer::parseInt))
+    public static final RestFunction deleteTodoById = context ->
+            findTodoById(context.getPathParameters().get("id").map(Integer::parseInt))
             .map(todo -> {
                 todos.remove(todo);
                 return HttpResponse.of(NO_CONTENT);
             })
             .orElse(HttpResponse.of(NOT_FOUND));
 
-    public static final RestFunction postToggleTodoById = context -> findTodoById(
-            context.getPathParameters().get("id").map(Integer::parseInt))
+    public static final RestFunction postToggleTodoById = context ->
+            findTodoById(context.getPathParameters().get("id").map(Integer::parseInt))
             .map(todo -> {
                 todo.setCompleted(!todo.isCompleted());
                 return HttpResponse.of(OK, serialize(todo), APPLICATION_JSON);
